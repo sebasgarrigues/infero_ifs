@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+set -eux
+
+srcdir=@CMAKE_CURRENT_SOURCE_DIR@
+bindir=@CMAKE_CURRENT_BINARY_DIR@
+datadir=@CMAKE_BINARY_DIR@/tests/data/torch_model
+exedir=@CMAKE_BINARY_DIR@/bin
+
+eng_type=@type_@
+model_path=$datadir/@model_@
+input_path=$datadir/m36966_input.csv
+ref_output_path=$datadir/m36966_prediction.csv
+
+
+# Set test tolerance
+test_tolerance=${INFERO_TEST_TOL:-0.001}
+
+# serial test
+$exedir/@runner_exe@ \
+  $model_path \
+  $eng_type \
+  $input_path \
+  $ref_output_path \
+  $test_tolerance
+
+# # parallel test (if MPI is found through eckit)
+# if [ "@eckit_HAVE_MPI@" == "1" ] && [ "@HAVE_INFERO_RUN@" == "1" ]; then  
+#   INFERO_TEST_NPROCS=${INFERO_TEST_NPROCS:-4}
+
+#   @MPIEXEC_EXECUTABLE@ @MPIEXEC_NUMPROC_FLAG@ ${INFERO_TEST_NPROCS} $exedir/@runner_exe@ \
+#   $model_path \
+#   $eng_type \
+#   $input_path \
+#   $ref_output_path \
+#   $test_tolerance
+# fi
+
