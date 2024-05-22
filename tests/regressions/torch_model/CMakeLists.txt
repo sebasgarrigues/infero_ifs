@@ -29,6 +29,22 @@ set_target_properties( runner_torch_mimo
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
+if(infero_HAVE_FORTRAN_APIS)
+    ecbuild_add_executable( TARGET runner_torch_mimo_F90
+       SOURCES   runner_torch_mimo.F90
+       CONDITION HAVE_TOOLS
+       INCLUDES  ${eckit_INCLUDE_DIRS}
+       LIBS      inferof
+       NOINSTALL
+    )
+
+    set_target_properties( runner_torch_mimo_F90
+        PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    )
+endif()
+
+
+
 
 # ----------------- tests ------------------
 list(APPEND tests_names_ "")
@@ -49,6 +65,13 @@ if (HAVE_TORCH)
     list(APPEND tests_types_ torch)
     list(APPEND tests_models_ torch_mimo.pt)
     list(APPEND tests_exe_ runner_torch_mimo)
+
+
+    # model mimo
+    list(APPEND tests_names_ multi_input_multi_output_fortran)
+    list(APPEND tests_types_ torch)
+    list(APPEND tests_models_ torch_mimo.pt)
+    list(APPEND tests_exe_ runner_torch_mimo_F90)
 
 endif()
 
