@@ -45,8 +45,8 @@ program my_program
   integer, parameter :: tensor1_size = 10
   integer, parameter :: tensor2_size = 5
   
-  real(c_float) :: t1(1,10) = (/0,1,2,3,4,5,6,7,8,9/)
-  real(c_float) :: t2(1,5) = (/0,1,2,3,4/)
+  real(c_float) :: t1(1,10) = 0
+  real(c_float) :: t2(1,5) = 0
   real(c_float) :: t3(1,1) = 0
   real(c_float) :: t4(1,1) = 0
   real(c_float) :: expected_output(2) = (/ 0.6535, 0.5611 /)
@@ -75,6 +75,11 @@ program my_program
   
   ! init infero library
   call infero_check(infero_initialise())
+
+
+  ! reshape input tensors
+  t1 = reshape( (/0,1,2,3,4,5,6,7,8,9/), shape(t1))
+  t2 = reshape( (/0,1,2,3,4/), shape(t2))
   
   ! prepare input tensors for named layers
   tensor1 = fckit_tensor_real32(t1)
