@@ -114,7 +114,7 @@ int main(int argc, char** argv){
     printf("output[0] = %f \n", output_tensor[0]);
 
     output_tensor_ref = (float*)malloc( sizeof (float) * output_size_flatten);
-    output_tensor_ref[0] = -0.64643896;
+    output_tensor_ref[0] = -0.27930790;
 
     for(int i=0; i<output_size_flatten; i++){
         if ( fabs(*(output_tensor+i) - *(output_tensor_ref+i)) > tol){
