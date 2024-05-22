@@ -42,20 +42,16 @@ int main(int argc, char** argv){
 
     char* model_path = argv[1];
     char* model_type = argv[2];
-    char* input_path = argv[3];
-    char* ref_output_path = argv[4];
-    if (argc>5) {
-        tol = atof(argv[5]);
+    if (argc>3) {
+        tol = atof(argv[3]);
     }
 
     char yaml_str[1024];
 
-    // int input_size[2];
-    int input_size[1];
 
+    int input_size[1];
     size_t input_size_flatten;
 
-    // int output_size[2];
     int output_size[1];
     size_t output_size_flatten;
 
@@ -69,40 +65,22 @@ int main(int argc, char** argv){
 
     printf("model_path %s \n", model_path);
     printf("model_type %s \n", model_type);
-    printf("input_path %s \n", input_path);
-    printf("ref_output_path %s \n", ref_output_path);
-
     sprintf(yaml_str, " path: %s\n type: %s", model_path, model_type);
     printf("yaml_str:\n%s\n", yaml_str);
 
-    // model input size [ 8,191 ]
+    // model input size [ 1, 10 ]
     input_size[0] = 10;
-    // input_size[1] = 191;
-
-    input_size_flatten = 1;
-    for (int i=0; i<1; i++){
-        input_size_flatten *= (size_t)input_size[i];
-    }
-
-    printf("input_size_flatten %li \n", input_size_flatten);
+    input_size_flatten = input_size[0];
     input_tensor = (float*)malloc( sizeof (float) * input_size_flatten);
 
-    // read input tensor..
-    // read_csv(input_path, input_tensor);
+    // fill input tensor with 1.0
     for (int i=0; i<input_size_flatten; i++){
-        *(input_tensor+i) = 1.0;
+        *(input_tensor+i) = i;
     }
 
-    // model output size [ 8, 126 ]
-    // output_size[0] = 8;
-    // output_size[1] = 126;
+    // model output size [ 1, 1 ]
     output_size[0] = 1;
-
-    output_size_flatten = 1;
-    for (int i=0; i<1; i++){
-        output_size_flatten *= (size_t)output_size[i];
-    }
-    printf("output_size_flatten %li \n", output_size_flatten);
+    output_size_flatten = output_size[0];
     output_tensor = (float*)malloc( sizeof (float) * output_size_flatten);
 
     // 0) init infero
@@ -132,17 +110,19 @@ int main(int argc, char** argv){
     // 5) finalise
     infero_finalise(); 
 
-    // // check output
-    // output_tensor_ref = (float*)malloc( sizeof (float) * output_size_flatten);
-    // read_csv(ref_output_path, output_tensor_ref);
+    // check output
+    printf("output[0] = %f \n", output_tensor[0]);
 
-    // for(int i=0; i<output_size_flatten; i++){
-    //     if ( fabs(*(output_tensor+i) - *(output_tensor_ref+i)) > tol){
-    //         printf("ERROR: output element %d (%f) is "
-    //                "different from expected value %f\n", i, *(output_tensor+i), *(output_tensor_ref+i) );
-    //         exit(1);
-    //     }
-    // }
+    output_tensor_ref = (float*)malloc( sizeof (float) * output_size_flatten);
+    output_tensor_ref[0] = -0.64643896;
+
+    for(int i=0; i<output_size_flatten; i++){
+        if ( fabs(*(output_tensor+i) - *(output_tensor_ref+i)) > tol){
+            printf("ERROR: output element %d (%f) is "
+                   "different from expected value %f\n", i, *(output_tensor+i), *(output_tensor_ref+i) );
+            exit(1);
+        }
+    }
 
     free(input_tensor);
     free(output_tensor);

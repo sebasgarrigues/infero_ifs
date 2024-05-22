@@ -18,27 +18,38 @@ set_target_properties( runner_torch
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-if(infero_HAVE_FORTRAN_APIS)
-    ecbuild_add_executable( TARGET runner_torch_f90
-       SOURCES   runner_torch.F90
-       CONDITION HAVE_TOOLS
-       INCLUDES  ${eckit_INCLUDE_DIRS}
-       LIBS      inferof
-       NOINSTALL
-    )
-    set_target_properties( runner_torch_f90
-        PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
-    )
-endif()
+ecbuild_add_executable( TARGET runner_torch_mimo
+   SOURCES   runner_torch_mimo.c
+   CONDITION HAVE_TOOLS
+   INCLUDES  ${eckit_INCLUDE_DIRS}
+   LIBS      inferoapi
+   NOINSTALL
+)
+set_target_properties( runner_torch_mimo
+    PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
 
 # ----------------- tests ------------------
+list(APPEND tests_names_ "")
 list(APPEND tests_types_ "")
 list(APPEND tests_models_ "")
+list(APPEND tests_exe_ "")
 
 if (HAVE_TORCH)
+
+    # model
+    list(APPEND tests_names_ single_input_single_output)
     list(APPEND tests_types_ torch)
     list(APPEND tests_models_ torch_model.pt)
-    list(APPEND tests_batches_ 1)
+    list(APPEND tests_exe_ runner_torch)
+    
+    # model mimo
+    list(APPEND tests_names_ multi_input_multi_output)
+    list(APPEND tests_types_ torch)
+    list(APPEND tests_models_ torch_mimo.pt)
+    list(APPEND tests_exe_ runner_torch_mimo)
+
 endif()
 
 message("TORCH test models: ${tests_models_} ")
@@ -49,34 +60,20 @@ math( EXPR _count "${_count}-1" )
 if(NOT ${_count} EQUAL "-1")
     foreach( _i RANGE ${_count} )
 
+        list( GET tests_names_ ${_i} name_ )
         list( GET tests_types_ ${_i} type_ )
         list( GET tests_models_ ${_i} model_ )
+        list( GET tests_exe_ ${_i} exe_ )
 
-        # C-runner
-        SET(runner_exe "runner_torch")
         ecbuild_configure_file(
             test_torch_template.sh.in
-            test_torch_${type_}_c.sh @ONLY
+            test_torch_${name_}.sh @ONLY
         )
 
         ecbuild_add_test(
             TYPE     SCRIPT
-            COMMAND  test_torch_${type_}_c.sh
+            COMMAND  test_torch_${name_}.sh
         )
-
-        # # F90-runner
-        # if(infero_HAVE_FORTRAN_APIS)
-        #     SET(runner_exe "runner_torch_f90")
-        #     ecbuild_configure_file(
-        #         test_torch_template.sh.in
-        #         test_torch_${type_}_f90.sh @ONLY
-        #     )
-
-        #     ecbuild_add_test(
-        #         TYPE     SCRIPT
-        #         COMMAND  test_torch_${type_}_f90.sh
-        #     )
-        # endif()
 
     endforeach()
 endif()

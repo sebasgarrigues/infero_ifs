@@ -19,7 +19,6 @@ class SimpleModel(nn.Module):
         return x
 
 
-
 def generate_model(model_name):
     """
     Generates a simple model and saves it to a file
@@ -28,7 +27,7 @@ def generate_model(model_name):
     # Instantiate the model
     model = SimpleModel()
 
-    example = torch.rand(1, 10)
+    example = torch.range(0, 9)
     traced_script_module = torch.jit.trace(model, example)
 
     # Save the torch model to a file
@@ -36,6 +35,7 @@ def generate_model(model_name):
 
     # Save the traced model to a file
     traced_script_module.save(model_name)
+
 
 
 def run_model(model_name):
@@ -47,9 +47,9 @@ def run_model(model_name):
     model = torch.load(model_name)
 
     # test the model
-    example = torch.ones(1, 10)
+    example = torch.range(0, 9)
     output = model.forward(example)
-    print(output)
+    print("output {:.8f} ".format(output.item() ))
 
 
 if __name__ == '__main__':
