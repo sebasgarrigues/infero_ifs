@@ -1,202 +1,91 @@
 name: ci
 
-# Controls when the workflow will run
 on:
-
-  # Trigger the workflow on all pushes, except on tag creation
+  # Trigger the workflow on push to master or develop, except tag creation
   push:
     branches:
-    - '**'
+      - 'master'
+      - 'develop'
     tags-ignore:
-    - '**'
+      - '**'
 
-  # Trigger the workflow on all pull requests
+  # Trigger the workflow on pull request
   pull_request: ~
 
-  # Allow workflow to be dispatched on demand
+  # Trigger the workflow manually
   workflow_dispatch: ~
 
+  # Trigger after public PR approved for CI
+  pull_request_target:
+    types: [labeled]
+
 jobs:
-
-  # Prepares dependency cache for subsequent job.
-  deps:
-    name: deps
-    strategy:
-      matrix:
-        name:
-        - gnu-10@ubuntu-20.04
-        - clang-12@ubuntu-20.04
-        - gnu-11@ubuntu-22.04
-#        - clang-14@ubuntu-22.04
-        include:
-        - name: gnu-10@ubuntu-20.04
-          os: ubuntu-20.04
-          compiler: gnu-10
-          compiler_cc: gcc-10
-          compiler_cxx: g++-10
-          compiler_fc: gfortran-10
-        - name: clang-12@ubuntu-20.04
-          os: ubuntu-20.04
-          compiler: clang-12
-          compiler_cc: clang-12
-          compiler_cxx: clang++-12
-          compiler_fc: gfortran-10
-        - name: gnu-11@ubuntu-22.04
-          os: ubuntu-22.04
-          compiler: gnu-11
-          compiler_cc: gcc-11
-          compiler_cxx: g++-11
-          compiler_fc: gfortran-11
-#        - name: clang-14@ubuntu-22.04
-#          os: ubuntu-22.04
-#          compiler: clang-14
-#          compiler_cc: clang-14
-#          compiler_cxx: clang++-14
-#          compiler_fc: gfortran-14
-    runs-on: ${{ matrix.os }}
-    env:
-
-      ONNX_VERSION: 1.10.0
-      ONNX_URL: https://github.com/microsoft/onnxruntime/releases/download
-      ONNX_TARFILE: onnxruntime-linux-x64-${ONNX_VERSION}.tgz
-      ONNX_TARFILE_URL: ${ONNX_URL}/v${ONNX_VERSION}/onnxruntime-linux-x64-${ONNX_VERSION}.tgz
-
-      TFC_VERSION: 2.7.0
-      TFC_URL: https://storage.googleapis.com/tensorflow/libtensorflow
-      TFC_TARFILE: libtensorflow-cpu-linux-x86_64-${TFC_VERSION}.tar.gz
-      TFC_TARFILE_URL: ${TFC_URL}/libtensorflow-cpu-linux-x86_64-${TFC_VERSION}.tar.gz
-
-      TFLITE_VERSION: 2.8.0
-
-    outputs:
-      deps-cache-key: ${{ steps.setup-environment.outputs.deps-cache-key }}
-
-    steps:
-    - name: Setup Environment
-      id: setup-environment
-      shell: bash -eux {0}
-      run: |
-        DEPS_PATH="${{ runner.temp }}/deps"
-        INSTALL_PATH="${{ runner.temp }}/install"
-
-        ONNX_PATH="${DEPS_PATH}/onnxruntime"
-        ONNX_INSTALL_PATH="${DEPS_PATH}/install_onnx"
-
-        TFC_PATH="${DEPS_PATH}/tensorflow_c_api"
-        TFC_INSTALL_PATH="${DEPS_PATH}/install_tfc"
-
-        TENSORFLOW_PATH="$DEPS_PATH/tensorflow"
-        TFLITE_PATH="${DEPS_PATH}/tensorflow/tensorflow/lite/build"
-
-        DEPS_ENV="DEPS_PATH=${DEPS_PATH}"$'\n'"INSTALL_PATH=${INSTALL_PATH}"
-        DEPS_ENV_ONNX="ONNX_PATH=${ONNX_PATH}"$'\n'"ONNX_TARFILE=${ONNX_TARFILE}"$'\n'"ONNX_INSTALL_PATH=${ONNX_INSTALL_PATH}"
-        DEPS_ENV_TFC="TFC_PATH=${TFC_PATH}"$'\n'"TFC_TARFILE=${TFC_TARFILE}"$'\n'"TFC_INSTALL_PATH=${TFC_INSTALL_PATH}"
-        DEPS_ENV_TFLITE="TFLITE_PATH=${TFLITE_PATH}"$'\n'"TFLITE_VERSION=${TFLITE_VERSION}"$'\n'"TENSORFLOW_PATH=${TENSORFLOW_PATH}"
-
-        mkdir -p ${DEPS_PATH}
-        mkdir -p ${INSTALL_PATH}
-        mkdir -p ${ONNX_INSTALL_PATH}
-        mkdir -p ${TFC_INSTALL_PATH}
-
-        echo "${DEPS_ENV}" > ${DEPS_PATH}/.env
-        echo "${DEPS_ENV_ONNX}" >> ${DEPS_PATH}/.env
-        echo "${DEPS_ENV_TFC}" >> ${DEPS_PATH}/.env
-        echo "${DEPS_ENV_TFLITE}" >> ${DEPS_PATH}/.env
-
-        cat ${DEPS_PATH}/.env
-
-        echo "${DEPS_ENV}" >> ${GITHUB_ENV}
-        echo "${DEPS_ENV_ONNX}" >> ${GITHUB_ENV}
-        echo "${DEPS_ENV_TFC}" >> ${GITHUB_ENV}
-        echo "${DEPS_ENV_TFLITE}" >> ${GITHUB_ENV}
-
-        echo deps-cache-key="deps-onnxruntime-${{ env.ONNX_VERSION }}-tfc-${{ env.TFC_VERSION }}-tflite-${{ env.TFLITE_VERSION }}-cache_v8-" >> $GITHUB_OUTPUT
-
-    - name: Check for Dependency Cache
-      id: deps-cache
-      uses: actions/cache@v3
-      with:
-        path: ${{ env.DEPS_PATH }}
-        key: ${{ steps.setup-environment.outputs.deps-cache-key }}${{ matrix.compiler }}@${{ matrix.os }}
-
-    - name: Download and install ONNX Runtime Lib
-      if: steps.deps-cache.outputs.cache-hit != 'true'
-      env:
-        CC: ${{ matrix.compiler_cc }}
-        CXX: ${{ matrix.compiler_cxx }}
-        FC: ${{ matrix.compiler_fc }}
-      working-directory: ${{ env.DEPS_PATH }}
-      shell: bash -eux {0}
-      run: |
-        mkdir -p ${{ env.ONNX_PATH }}
-        wget ${{ env.ONNX_TARFILE_URL }} -P ${{ env.ONNX_PATH }}
-        tar xzvf ${{ env.ONNX_PATH }}/${{ env.ONNX_TARFILE }} --strip-components=1 -C ${{ env.ONNX_INSTALL_PATH }}
-        ls -R ${{ env.ONNX_INSTALL_PATH }}
-        echo "ONNX Lib downloaded and installed"
-
-    - name: Download and install TF-CAPI Runtime Lib
-      if: steps.deps-cache.outputs.cache-hit != 'true'
-      env:
-        CC: ${{ matrix.compiler_cc }}
-        CXX: ${{ matrix.compiler_cxx }}
-        FC: ${{ matrix.compiler_fc }}
-      working-directory: ${{ env.DEPS_PATH }}
-      shell: bash -eux {0}
-      run: |
-        mkdir -p ${{ env.TFC_PATH }}
-        wget ${{ env.TFC_TARFILE_URL }} -P ${{ env.TFC_PATH }}
-        tar xzvf ${{ env.TFC_PATH }}/${{ env.TFC_TARFILE }} --strip-components=1 -C ${{ env.TFC_INSTALL_PATH }}
-        ls -R ${{ env.TFC_INSTALL_PATH }}
-        echo "TFC Lib downloaded and installed"
-
-    - name: Checkout TensorFlow Repository
-      if: steps.deps-cache.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
-      with:
-        repository: tensorflow/tensorflow
-        ref: v${{ env.TFLITE_VERSION }}
-        path: ${{ github.workspace }}/tensorflow
-
-    - name: Build TensorFlow Lite
-      if: steps.deps-cache.outputs.cache-hit != 'true'
-      env:
-        CC: ${{ matrix.compiler_cc }}
-        CXX: ${{ matrix.compiler_cxx }}
-        FC: ${{ matrix.compiler_fc }}
-      working-directory: ${{ github.workspace }}/tensorflow
-      shell: bash -eux {0}
-      run: |
-        INSTALL_DIR=${{ env.TENSORFLOW_PATH }}
-        mkdir -p ${INSTALL_DIR}
-        mv tensorflow third_party ${INSTALL_DIR}
-        cd ${INSTALL_DIR}/tensorflow/lite
-        SRC_DIR=$(pwd)
-        BUILD_DIR=build
-        rm -rf ${BUILD_DIR} && mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
-        cmake -DCMAKE_PREFIX_PATH=${INSTALL_DIR} -DBUILD_SHARED_LIBS=ON ${SRC_DIR}
-        cmake --build . -j2
-
-  # Calls a reusable CI workflow to build & test the current repository.
-  #   It will pull in all needed dependencies and produce a code coverage report on success.
-  #   We also pass the cache key of additional dependencies which were built in the previous job.
-  ci:
-    name: ci
-    uses: ecmwf-actions/reusable-workflows/.github/workflows/ci.yml@v1
-    needs:
-    - deps
+  # Run CI including downstream packages on self-hosted runners
+  downstream-ci:
+    name: downstream-ci
+    if: ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
+    uses: ecmwf-actions/downstream-ci/.github/workflows/downstream-ci.yml@main
     with:
-      skip_matrix_jobs: |
-        clang-14@macos-12
-        clang-14@ubuntu-22.04
-      codecov_upload: false
-      notify_teams: true
-      deps_cache_key: ${{ needs.deps.outputs.deps-cache-key }}
-      build_package_inputs: |
-        cmake_options: -DENABLE_FORTRAN=ON -DFCKIT_ROOT=${INSTALL_PATH} -DENABLE_TF_C=ON -DTENSORFLOWC_ROOT=${TFC_INSTALL_PATH} -DENABLE_ONNX=ON -DONNX_ROOT=${ONNX_INSTALL_PATH} -DENABLE_TF_LITE=OFF -DTENSORFLOWLITE_PATH=${TENSORFLOW_PATH} -DTENSORFLOWLITE_ROOT=${TFLITE_PATH} -DENABLE_TENSORRT=OFF
-        dependencies: |
-          ecmwf/ecbuild@refs/tags/3.8.0
-          ecmwf/eckit@refs/tags/1.24.4
-          ecmwf/fckit@refs/tags/0.11.0
-        dependency_branch: develop
-    secrets:
-      incoming_webhook: ${{ secrets.MS_TEAMS_INCOMING_WEBHOOK }}
+      infero: ecmwf/infero@${{ github.event.pull_request.head.sha || github.sha }}
+      codecov_upload: true
+    secrets: inherit
+
+  # Run CI of private downstream packages on self-hosted runners
+  private-downstream-ci:
+    name: private-downstream-ci
+    needs: [downstream-ci]
+    if: (success() || failure()) && ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Dispatch private downstream CI
+        uses: ecmwf-actions/dispatch-private-downstream-ci@v1
+        with:
+          token: ${{ secrets.GH_REPO_READ_TOKEN }}
+          owner: ecmwf-actions
+          repository: private-downstream-ci
+          event_type: downstream-ci
+          payload: '{"infero": "ecmwf/infero@${{ github.event.pull_request.head.sha || github.sha }}"}'
+
+  # Build downstream packages on HPC
+  downstream-ci-hpc:
+    name: downstream-ci-hpc
+    if: ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
+    uses: ecmwf-actions/downstream-ci/.github/workflows/downstream-ci-hpc.yml@main
+    with:
+      infero: ecmwf/infero@${{ github.event.pull_request.head.sha || github.sha }}
+    secrets: inherit
+
+  # Run CI of private downstream packages on HPC
+  private-downstream-ci-hpc:
+    name: private-downstream-ci-hpc
+    needs: [downstream-ci-hpc]
+    if: (success() || failure()) && ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Dispatch private downstream CI
+        uses: ecmwf-actions/dispatch-private-downstream-ci@v1
+        with:
+          token: ${{ secrets.GH_REPO_READ_TOKEN }}
+          owner: ecmwf-actions
+          repository: private-downstream-ci
+          event_type: downstream-ci-hpc
+          payload: '{"infero": "ecmwf/infero@${{ github.event.pull_request.head.sha || github.sha }}"}'
+
+  notify:
+    runs-on: ubuntu-latest
+    needs:
+      - downstream-ci
+      - private-downstream-ci
+      - downstream-ci-hpc
+      - private-downstream-ci-hpc
+    if: always() && ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
+    steps:
+      - name: Trigger Teams notification
+        uses: ecmwf-actions/notify-teams@v1
+        with:
+          incoming_webhook: ${{ secrets.MS_TEAMS_INCOMING_WEBHOOK }}
+          needs_context: ${{ toJSON(needs) }}
